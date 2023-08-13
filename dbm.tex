@@ -1,0 +1,48 @@
+\documentclass{standalone}
+
+\usepackage{xfp}
+\usepackage{tikz}
+\usetikzlibrary{calc, arrows.meta}
+
+\newcommand{\DBMPath}[6]{
+(\fpeval{-(#3)},\fpeval{-(#4)}) -- (\fpeval{(#5) - (#4)}, \fpeval{-(#4)}) -- (#1, \fpeval{(#1) - (#5)}) -- (#1, #2) -- (\fpeval{(#2) - (#6)}, #2) -- (\fpeval{-(#3)}, \fpeval{(#6) - (#3)}) -- cycle
+}
+ 
+\newcommand{\DBMAxes}[2]{
+\coordinate (origin) at (0,0);
+\node[label=above:$y$] (y-ext) at (0,#2 + 0.5) {};
+\node[label=right:$x$] (x-ext) at (#1 + 0.5,0) {};
+
+\foreach \x in {0,..., #1} 
+{\node[label=below:$\x$] (mark\x) at (\x, 0) {};
+\draw ($(mark\x) - (0,0.1)$) -- ($(mark\x) + (0,0.1)$);}
+\foreach \y in {0,..., #2}
+{\node[label=left:$\y$] (mark\y) at (0, \y) {};
+\draw ($(mark\y) - (0.1,0)$) -- ($(mark\y) + (0.1,0)$);}
+
+\path[draw, ->]
+    (origin) edge (y-ext)
+    (origin) to (x-ext);
+}
+
+
+\tikzset{Dot/.tip={Circle[length=4pt,sep=-2pt]}}
+\newcommand{\dbmyoffset}{0.3}
+\newcommand{\DBMAxis}[1]{
+\coordinate (origin) at (0,0);
+\node[label={[label distance=-3mm]right:$x$}] (x-ext) at (#1 + 0.5, -\dbmyoffset) {};
+
+\foreach \x in {0,..., #1} 
+{\node[label=below:$\x$] (mark\x) at (\x, -\dbmyoffset) {};
+\draw ($(mark\x) - (0,0.1)$) -- ($(mark\x) + (0,0.1)$);}
+
+\path[draw, ->]
+    ($(origin) + (0, -\dbmyoffset)$) to (x-ext);
+}
+
+\begin{document}
+\begin{tikzpicture}
+\draw[fill=red!80] \DBMPath{3}{2}{0}{0}{1}{1};
+\DBMAxes{3}{3}
+\end{tikzpicture}
+\end{document}
