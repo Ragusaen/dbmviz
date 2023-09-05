@@ -4,11 +4,15 @@ import re
 import subprocess
 import sys
 import tempfile
+import itertools
 
 infinity = 100000
 
 tikz_str_prefix = "\\documentclass{standalone}\n\n\\usepackage{xfp}\n\\usepackage{tikz}\n\\usetikzlibrary{calc, arrows.meta}\n\n\\newcommand{\\DBMPath}[6]{\n(\\fpeval{-(#3)},\\fpeval{-(#4)}) -- (\\fpeval{(#5) - (#4)}, \\fpeval{-(#4)}) -- (#1, \\fpeval{(#1) - (#5)}) -- (#1, #2) -- (\\fpeval{(#2) - (#6)}, #2) -- (\\fpeval{-(#3)}, \\fpeval{(#6) - (#3)}) -- cycle\n}\n\n\\newcommand{\\DBMAxes}[2]{\n\\coordinate (origin) at (0,0);\n\\node[label=above:$y$] (y-ext) at (0,#2 + 0.5) {};\n\\node[label=right:$x$] (x-ext) at (#1 + 0.5,0) {};\n\n\\foreach \\x in {0,..., #1}\n{\\node[label=below:$\\x$] (mark\\x) at (\\x, 0) {};\n\\draw ($(mark\\x) - (0,0.1)$) -- ($(mark\\x) + (0,0.1)$);}\n\\foreach \\y in {0,..., #2}\n{\\node[label=left:$\\y$] (mark\\y) at (0, \\y) {};\n\\draw ($(mark\\y) - (0.1,0)$) -- ($(mark\\y) + (0.1,0)$);}\n\n\\path[draw, ->]\n    (origin) edge (y-ext)\n    (origin) to (x-ext);\n}\n\n\n\\tikzset{Dot/.tip={Circle[length=4pt,sep=-2pt]}}\n\\newcommand{\\dbmyoffset}{0.3}\n\\newcommand{\\DBMAxis}[1]{\n\\coordinate (origin) at (0,0);\n\\node[label={[label distance=-3mm]right:$x$}] (x-ext) at (#1 + 0.5, -\\dbmyoffset) {};\n\n\\foreach \\x in {0,..., #1}\n{\\node[label=below:$\\x$] (mark\\x) at (\\x, -\\dbmyoffset) {};\n\\draw ($(mark\\x) - (0,0.1)$) -- ($(mark\\x) + (0,0.1)$);}\n\n\\path[draw, ->]\n    ($(origin) + (0, -\\dbmyoffset)$) to (x-ext);\n}\n\n\\begin{document}\n\\begin{tikzpicture}"
 tikz_str_suffix = "\n\\end{tikzpicture}\n\\end{document}\n"
+
+colors = ['red', 'green', 'blue', 'cyan', 'magenta', 'yellow']
+color_iter = itertools.cycle(colors)
 
 class DBM:
     @staticmethod
@@ -37,6 +41,7 @@ class DBM:
 
         self.clocks = clocks
         self.dbm = [0 for _ in range(9)]
+        self.color = next(color_iter)
 
     def __getitem__(self, index: tuple[int, int]):
         return self.dbm[index[0] * 3 + index[1]]
@@ -83,10 +88,14 @@ class DBM:
     def copy(self):
         dbm = DBM(self.clocks)
         dbm.dbm = self.dbm.copy()
+        dbm.color = self.color
         return dbm
 
     def __eq__(self, other):
         return all(a == b for a, b  in zip(self.dbm, other.dbm))
+
+    def __repr__(self):
+        return self.__str__()
 
     def __str__(self):
         if self == DBM.true():
@@ -287,46 +296,68 @@ while True:
             else:
                 print(f"Unknown clock '{command[1]}', try x or y")
 
-    elif command[0] == "show":
-        dbm = None
-        if len(command) > 2:
-            print("Incorrect command usage, show [name]")
-            continue
-        elif len(command) == 2:
-            if not command[1] in dbms:
-                print(f"I don't know the DBM '{command[1]}'")
-                continue
-            else:
-                dbm = dbms[command[1]]
+    elif command[0] == 'color':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
         else:
             dbm = dbms[current_dbm]
+            if len(command) != 2:
+                print("Incorrect command usage, color <color> // Any tikz color will work")
+            else:
+                dbm.color = command[1]
 
-        dir = tempfile.mkdtemp(None, f'dbmviz_')
-        d = max(dbm[1,0], dbm[2,0])
+    elif command[0] == "show":
+        show_dbms = []
+        if len(command) == 1:
+            command.append(current_dbm)
+
+        fail = False
+        for i in range(1, len(command)):
+            if not command[i] in dbms:
+                print(f"I don't know the DBM '{command[i]}'")
+                fail = True
+            else:
+                show_dbms.append(dbms[command[i]])
+        if fail:
+            continue
+
+        d = max((b for dbm in show_dbms for b in [dbm[1,0], dbm[2,0]]  if b != infinity), default=infinity)
         if d == infinity:
             d = 5
-        dbm = dbm.copy()
-        if dbm[1,0] == infinity:
-            dbm[1,0] = d + 0.5
-        if dbm[2,0] == infinity:
-            dbm[2,0] = d + 0.5
-        dbm.canonize()
+
+        print(show_dbms)
+
+        is_non2d = lambda dbm: dbm[1,0] == -dbm[0,1] or dbm[2,0] == -dbm[0,2] or dbm[1,2] == -dbm[2,1]
+        show_dbms.sort(key=is_non2d)
+        axes_index = next((i for i, dbm in enumerate(show_dbms) if is_non2d(dbm)), len(show_dbms))
+
+        print(show_dbms)
 
         s = ""
-        if dbm[1,0] == -dbm[0,1] and dbm[2,0] == -dbm[0,2]:
-            s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
-            s += "\\node[circle, fill=red!80, inner sep=1.5] at (" + str(dbm[1,0]) + "," + str(dbm[2,0]) + ") {}; "
-        else:
-            is_non2d = dbm[1,0] == -dbm[0,1] or dbm[2,0] == -dbm[0,2] or dbm[1,2] == -dbm[2,1]
-            if is_non2d:
-                s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
-                s += "\\draw[red!80, ultra thick] "
-            else:
-                s += "\\path[fill=red!80] "
-            s += "\\DBMPath{" + str(dbm[1,0]) + "}{" + str(dbm[2,0]) + "}{" + str(dbm[0,1]) + "}{" + str(dbm[0,2]) + "}{" + str(dbm[1,2]) + "}{" + str(dbm[2,1]) + "}; \n"
-            if not is_non2d:
-                s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}"
+        for i, dbm_raw in enumerate(show_dbms):
+            dbm = dbm_raw.copy()
+            if dbm[1,0] == infinity:
+                dbm[1,0] = d + 0.5
+            if dbm[2,0] == infinity:
+                dbm[2,0] = d + 0.5
+            dbm.canonize()
 
+            if i == axes_index:
+                s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
+
+            if dbm[1,0] == -dbm[0,1] and dbm[2,0] == -dbm[0,2]:
+                s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1,0]) + "," + str(dbm[2,0]) + ") {}; "
+            else:
+                if is_non2d(dbm):
+                    s += "\\draw[" + dbm.color + "!80, ultra thick] "
+                else:
+                    s += "\\path[fill=" + dbm.color + "!80] "
+                s += "\\DBMPath{" + str(dbm[1,0]) + "}{" + str(dbm[2,0]) + "}{" + str(dbm[0,1]) + "}{" + str(dbm[0,2]) + "}{" + str(dbm[1,2]) + "}{" + str(dbm[2,1]) + "}; \n"
+
+        if len(show_dbms) == axes_index:
+            s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
+
+        dir = tempfile.mkdtemp(None, f'dbmviz_')
         with open(os.path.join(dir, 'dbm.tex'), 'w') as f:
             f.write(tikz_str_prefix + s + tikz_str_suffix)
         p = subprocess.run(['pdflatex', '-halt-on-error', 'dbm.tex'], cwd=dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -341,7 +372,7 @@ while True:
     elif command[0] == "tikz":
         dbm = None
         if len(command) > 2:
-            print("Incorrect command usage, show [name]")
+            print("Incorrect command usage, tikz [name]")
             continue
         elif len(command) == 2:
             if not command[1] in dbms:
@@ -366,14 +397,14 @@ while True:
         s = ""
         if dbm[1, 0] == -dbm[0, 1] and dbm[2, 0] == -dbm[0, 2]:
             s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
-            s += "\\node[circle, fill=red!80, inner sep=1.5] at (" + str(dbm[1, 0]) + "," + str(dbm[2, 0]) + ") {}; "
+            s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1, 0]) + "," + str(dbm[2, 0]) + ") {}; "
         else:
             is_non2d = dbm[1, 0] == -dbm[0, 1] or dbm[2, 0] == -dbm[0, 2] or dbm[1, 2] == -dbm[2, 1]
             if is_non2d:
                 s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
-                s += "\\draw[red!80, ultra thick] "
+                s += "\\draw[" + dbm.color + "!80, ultra thick] "
             else:
-                s += "\\path[fill=red!80] "
+                s += "\\path[fill=" + dbm.color + "!80] "
             s += "\\DBMPath{" + str(dbm[1, 0]) + "}{" + str(dbm[2, 0]) + "}{" + str(dbm[0, 1]) + "}{" + str(
                 dbm[0, 2]) + "}{" + str(dbm[1, 2]) + "}{" + str(dbm[2, 1]) + "}; \n"
             if not is_non2d:
