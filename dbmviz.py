@@ -130,7 +130,6 @@ class DBM:
                 c.append(f"x-y<={self[1, 2]}")
         return " and ".join(c)
 
-
 dbms = {}
 
 _current_name = "a"
@@ -145,7 +144,7 @@ def next_name():
 
 current_dbm = None
 
-name_re = re.compile(r"[a-zA-Z0-9_]+")
+name_re = re.compile(r"[a-zA-Z0-9_']+")
 constrain_re = re.compile(r"([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=|==)\s*(-?\d+)")
 diff_constrain_re = re.compile(r"([a-zA-Z0-9_]+)\s*-\s*([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=|==)\s*(-?\d+)")
 
@@ -180,13 +179,16 @@ while True:
     if len(command) == 0:
         pass
 
+    elif command[0] == 'example':
+        queued_commands += ['new zero', 'up', 'x <= 5', 'y>3', 'reset x', 'up', 'y<4', 'print', 'show']
+
     elif command[0] == "new":
         if len(command) < 2:
             print("Incorrect command usage, new <true|false|zero> [name]")
         else:
             name = command[2] if len(command) >= 3 else next_name()
             if name_re.fullmatch(name) is None:
-                print("Incorrect name, must match [a-zA-Z0-9_]+")
+                print("Incorrect name, must match [a-zA-Z0-9_']+")
                 dbm = None
             elif command[1] == "true":
                 dbm = DBM.true()
@@ -200,6 +202,29 @@ while True:
 
             dbms[name] = dbm
             current_dbm = name
+
+    elif command[0] == 'copy':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
+            continue
+        if len(command) > 2:
+            print('Incorrect command usage, copy [name of copy]')
+            continue
+        if len(command) == 1:
+            name = current_dbm
+            while name in dbms:
+                name += '\''
+        if len(command) == 2:
+            if name_re.fullmatch(command[1]) is None:
+                print("Incorrect name, must match [a-zA-Z0-9_']+")
+                continue
+            else:
+                name = command[1]
+
+        dbms[name] = dbms[current_dbm].copy()
+        dbms[name].color = next(color_iter)
+        current_dbm = name
+
 
     elif command[0] == "select":
         if len(command) != 2:
@@ -577,14 +602,19 @@ Finally, to render the DBM, simply place the macro calls into a tikzpicture envi
         print(
             """This is an interactive tool to play with Difference Bound Matrices (DBMs).
 Commands:
+example - runs the example from below
 new <true|false|zero> [name] - Create a new DBM, if no name is given, a new name is generated
 select <name> - Select a DBM
+copy [name] - Copy the current DBM, optionally give it a name
 print [name] - Print a DBM, if no name is given, print the selected DBM
 <clock> op <value> - For op ∈ {<=,<,=,==,>,>=}. Constrain a clock to a value; no difference between strict and non-strict
 <clock1> - <clock2> op <value> - For op ∈ {<=,<,=,==,>,>=}. Constrain the difference between two clocks to a value
 up - Free upper constraints
 down - Free lower constraints
+free <clock1> - <clock2> - Free a specific constraint, can involve the 0 clock
 reset <clock> - Reset a clock to 0
+extrapolate <constant> - Extrapolate with the max constant as <constant> for all clocks
+extrapolate <constant x> <constant y> - Extrapolate with a seperate constant for each clock
 tikz [name] - Prints the tikz commands to draw the DBM, see tikz-help for more information
 tikz-help - Explains how to render the tikz output in latex
 help - Print this help message
@@ -596,6 +626,8 @@ up // Free upper constrains (unbounded delay)
 x <= 5 // Constrain x to less than 5
 y>3 // There is no difference between strict and non-strict inequalities
 reset x // Reset the x clock to 0
+up
+y<4
 print // Print the constraints of the current DBM, the constraints x >= 0, y >= 0, x <= ∞, y <= ∞, x - y <= ∞, y - x <= ∞ are not shown
 show // Shows a visual presentation of the DBM
 """)
