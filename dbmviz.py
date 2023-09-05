@@ -262,9 +262,6 @@ while True:
                 continue
 
         value = int(match[4])
-        if value < 0:
-            print("Cannot constrain to negative value")
-            continue
 
         if match[3] == "<=" or match[3] == "<":
             dbm.leq(clock[0], clock[1], value)
@@ -350,6 +347,70 @@ while True:
 
         dbm.free(x1, x2)
         dbm.canonize()
+
+    elif command[0] == 'extrapolate':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
+            continue
+        dbm = dbms[current_dbm]
+
+        if len(command) > 3 or len(command) == 1:
+            print('Incorrect command usage, extrapolate <constant>, or extrapolate <x constant> <y constant>')
+            continue
+
+        if not command[1].isdigit():
+            print(f'{command[1]} is not an integer')
+            continue
+        M = [infinity] * 3
+        M[1] = int(command[1])
+        if len(command) == 2:
+            M[2] = M[1]
+        else:
+            if not command[2].isdigit():
+                print(f'{command[2]} is not an integer')
+                continue
+            M[2] = int(command[2])
+
+        for x1 in [0,1,2]:
+            for x2 in [0,1,2]:
+                if x1 == x2:
+                    continue
+                if dbm[x1,x2] > M[x1]:
+                    dbm[x1,x2] = infinity
+                elif -dbm[x1,x2] > M[x2]:
+                    dbm[x1,x2] = -M[x2]
+
+        dbm.canonize()
+
+
+    elif command[0] == 'LUextrapolate':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
+            continue
+        dbm = dbms[current_dbm]
+
+        if len(command) != 5:
+            print('Incorrect command usage, extrapolate <lower bound x> <upper bound x> <lower bound y> <upper bound y>')
+            continue
+
+        for i in range(1, len(command)):
+            if not command[i].isdigit():
+                print(f'{command[i]} is not an integer')
+                continue
+        L = [infinity, int(command[1]), int(command[3])]
+        U = [infinity, int(command[2]), int(command[4])]
+
+        for x1 in [0,1,2]:
+            for x2 in [0,1,2]:
+                if x1 == x2:
+                    continue
+                if dbm[x1,x2] > L[x1]:
+                    dbm[x1,x2] = infinity
+                elif -dbm[x1,x2] > U[x2]:
+                    dbm[x1,x2] = -U[x2]
+
+        dbm.canonize()
+
 
     elif command[0] == "show":
         show_dbms = []
