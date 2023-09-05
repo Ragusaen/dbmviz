@@ -14,6 +14,7 @@ tikz_str_suffix = "\n\\end{tikzpicture}\n\\end{document}\n"
 colors = ['red', 'green', 'blue', 'cyan', 'magenta', 'yellow']
 color_iter = itertools.cycle(colors)
 
+
 class DBM:
     @staticmethod
     def true():
@@ -52,7 +53,7 @@ class DBM:
     def is_consistent(self):
         for c1 in [0, 1, 2]:
             for c2 in [0, 1, 2]:
-                if -self[c1,c2] > self[c2,c1]:
+                if -self[c1, c2] > self[c2, c1]:
                     return False
         return True
 
@@ -62,8 +63,9 @@ class DBM:
                 if c1 == c2:
                     continue
                 c3 = 3 - c1 - c2
-                if self[c1,c2] > self[c1,c3] + self[c3,c2]:
-                    self[c1,c2] = self[c1,c3] + self[c3,c2] if self[c1,c3] != infinity and self[c3,c2] != infinity else infinity
+                if self[c1, c2] > self[c1, c3] + self[c3, c2]:
+                    self[c1, c2] = self[c1, c3] + self[c3, c2] if self[c1, c3] != infinity and self[
+                        c3, c2] != infinity else infinity
 
     def leq(self, clock1: int, clock2: int, value: int):
         self[clock1, clock2] = min(self[clock1, clock2], value)
@@ -92,7 +94,7 @@ class DBM:
         return dbm
 
     def __eq__(self, other):
-        return all(a == b for a, b  in zip(self.dbm, other.dbm))
+        return all(a == b for a, b in zip(self.dbm, other.dbm))
 
     def __repr__(self):
         return self.__str__()
@@ -103,35 +105,37 @@ class DBM:
         elif self == DBM.false():
             return "false"
         c = []
-        if -self[0,1] == self[1,0]:
-            c.append(f"x={self[1,0]}")
+        if -self[0, 1] == self[1, 0]:
+            c.append(f"x={self[1, 0]}")
         else:
-            if self[1,0] != infinity:
-                c.append(f"x<={self[1,0]}")
-            if self[0,1] != 0:
-                c.append(f"x>={-self[0,1]}")
+            if self[1, 0] != infinity:
+                c.append(f"x<={self[1, 0]}")
+            if self[0, 1] != 0:
+                c.append(f"x>={-self[0, 1]}")
 
-        if -self[0,2] == self[2,0]:
-            c.append(f"y={self[2,0]}")
+        if -self[0, 2] == self[2, 0]:
+            c.append(f"y={self[2, 0]}")
         else:
-            if self[2,0] != infinity:
-                c.append(f"y<={self[2,0]}")
-            if self[0,2] != 0:
-                c.append(f"y>={-self[0,2]}")
+            if self[2, 0] != infinity:
+                c.append(f"y<={self[2, 0]}")
+            if self[0, 2] != 0:
+                c.append(f"y>={-self[0, 2]}")
 
-        if -self[1,2] == self[2,1]:
-            c.append(f"x-y={self[1,2]}")
+        if -self[1, 2] == self[2, 1]:
+            c.append(f"x-y={self[1, 2]}")
         else:
-            if self[2,1] != infinity:
-                c.append(f"y-x<={self[2,1]}")
-            if self[1,2] != infinity:
-                c.append(f"x-y<={self[1,2]}")
+            if self[2, 1] != infinity:
+                c.append(f"y-x<={self[2, 1]}")
+            if self[1, 2] != infinity:
+                c.append(f"x-y<={self[1, 2]}")
         return " and ".join(c)
 
 
 dbms = {}
 
 _current_name = "a"
+
+
 def next_name():
     global _current_name
     name = _current_name
@@ -146,6 +150,8 @@ constrain_re = re.compile(r"([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=|==)\s*(-?\d+)")
 diff_constrain_re = re.compile(r"([a-zA-Z0-9_]+)\s*-\s*([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=|==)\s*(-?\d+)")
 
 queued_commands = []
+
+
 def get_input():
     global queued_commands
     if len(queued_commands) == 0:
@@ -156,12 +162,12 @@ def get_input():
         print(c)
         return c
 
+
 if len(sys.argv) == 2:
     queued_commands = sys.argv[1].split(';')
 elif len(sys.argv) != 1:
     print("Incorrect command usage, try dbmviz.py [commands]. Commands are in quotes and separated by ';'")
     exit(1)
-
 
 while True:
     if current_dbm is None:
@@ -245,12 +251,12 @@ while True:
         match = diff_constrain_re.fullmatch(''.join(command))
         dbm = dbms[current_dbm]
 
-        clock = [0,0]
-        for i in [1,2]:
+        clock = [0, 0]
+        for i in [1, 2]:
             if match[i] == "x":
-                clock[i-1] = 1
+                clock[i - 1] = 1
             elif match[i] == "y":
-                clock[i-1] = 2
+                clock[i - 1] = 2
             else:
                 print(f"Unknown clock '{match[i]}', try x or y")
                 continue
@@ -272,6 +278,7 @@ while True:
         if current_dbm is None:
             print("No DBM selected, create one with the new command")
         else:
+            dbm = dbms[current_dbm]
             dbm.free(1, 0)
             dbm.free(2, 0)
 
@@ -279,6 +286,7 @@ while True:
         if current_dbm is None:
             print("No DBM selected, create one with the new command")
         else:
+            dbm = dbms[current_dbm]
             dbm.free(0, 1)
             dbm.free(0, 2)
 
@@ -306,6 +314,43 @@ while True:
             else:
                 dbm.color = command[1]
 
+    elif command[0] == 'dbm':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
+            continue
+
+        dbm = dbms[current_dbm]
+
+
+        def rep_inf(x):
+            return '∞' if x == infinity else x
+
+
+        names = ['0', 'x', 'y']
+        s = " c-r<n " + ''.join(f'|  {s}  ' for s in names) + '\n'
+        for x1, s1 in enumerate(names):
+            s += '+'.join(['-' * 7] + ['-' * 5] * len(names)) + '\n'
+            s += f'{s1: ^7}' + ''.join(f'|{rep_inf(dbm[x1, x2]): ^5}' for x2, _ in enumerate(names)) + '\n'
+
+        print(s)
+
+    elif command[0] == 'free':
+        if current_dbm is None:
+            print("No DBM selected, create one with the new command")
+            continue
+
+        cre = re.compile(r'([0xy])\s*-([0xy])\s*')
+        if len(command) != 2 or not cre.fullmatch(''.join(command[1:])):
+            print('Incorrect command usage, free <constraint>, e.g. x-0, 0-y, y-x, ...')
+
+        dbm = dbms[current_dbm]
+        match = cre.fullmatch(''.join(command[1:]))
+        x1 = ['0', 'x', 'y'].index(match[1])
+        x2 = ['0', 'x', 'y'].index(match[2])
+
+        dbm.free(x1, x2)
+        dbm.canonize()
+
     elif command[0] == "show":
         show_dbms = []
         if len(command) == 1:
@@ -321,38 +366,36 @@ while True:
         if fail:
             continue
 
-        d = max((b for dbm in show_dbms for b in [dbm[1,0], dbm[2,0]]  if b != infinity), default=infinity)
+        d = max((b for dbm in show_dbms for b in [dbm[1, 0], dbm[2, 0]] if b != infinity), default=infinity)
         if d == infinity:
             d = 5
 
-        print(show_dbms)
-
-        is_non2d = lambda dbm: dbm[1,0] == -dbm[0,1] or dbm[2,0] == -dbm[0,2] or dbm[1,2] == -dbm[2,1]
+        is_non2d = lambda dbm: dbm[1, 0] == -dbm[0, 1] or dbm[2, 0] == -dbm[0, 2] or dbm[1, 2] == -dbm[2, 1]
         show_dbms.sort(key=is_non2d)
         axes_index = next((i for i, dbm in enumerate(show_dbms) if is_non2d(dbm)), len(show_dbms))
-
-        print(show_dbms)
 
         s = ""
         for i, dbm_raw in enumerate(show_dbms):
             dbm = dbm_raw.copy()
-            if dbm[1,0] == infinity:
-                dbm[1,0] = d + 0.5
-            if dbm[2,0] == infinity:
-                dbm[2,0] = d + 0.5
+            if dbm[1, 0] == infinity:
+                dbm[1, 0] = d + 0.5
+            if dbm[2, 0] == infinity:
+                dbm[2, 0] = d + 0.5
             dbm.canonize()
 
             if i == axes_index:
                 s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
 
-            if dbm[1,0] == -dbm[0,1] and dbm[2,0] == -dbm[0,2]:
-                s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1,0]) + "," + str(dbm[2,0]) + ") {}; "
+            if dbm[1, 0] == -dbm[0, 1] and dbm[2, 0] == -dbm[0, 2]:
+                s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1, 0]) + "," + str(
+                    dbm[2, 0]) + ") {}; "
             else:
                 if is_non2d(dbm):
                     s += "\\draw[" + dbm.color + "!80, ultra thick] "
                 else:
                     s += "\\path[fill=" + dbm.color + "!80] "
-                s += "\\DBMPath{" + str(dbm[1,0]) + "}{" + str(dbm[2,0]) + "}{" + str(dbm[0,1]) + "}{" + str(dbm[0,2]) + "}{" + str(dbm[1,2]) + "}{" + str(dbm[2,1]) + "}; \n"
+                s += "\\DBMPath{" + str(dbm[1, 0]) + "}{" + str(dbm[2, 0]) + "}{" + str(dbm[0, 1]) + "}{" + str(
+                    dbm[0, 2]) + "}{" + str(dbm[1, 2]) + "}{" + str(dbm[2, 1]) + "}; \n"
 
         if len(show_dbms) == axes_index:
             s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
@@ -360,7 +403,8 @@ while True:
         dir = tempfile.mkdtemp(None, f'dbmviz_')
         with open(os.path.join(dir, 'dbm.tex'), 'w') as f:
             f.write(tikz_str_prefix + s + tikz_str_suffix)
-        p = subprocess.run(['pdflatex', '-halt-on-error', 'dbm.tex'], cwd=dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.run(['pdflatex', '-halt-on-error', 'dbm.tex'], cwd=dir, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
         if p.returncode != 0:
             print(p.stdout.decode('utf-8'))
             print(p.stderr.decode('utf-8'))
@@ -397,7 +441,8 @@ while True:
         s = ""
         if dbm[1, 0] == -dbm[0, 1] and dbm[2, 0] == -dbm[0, 2]:
             s += "\\DBMAxes{" + str(d) + "}{" + str(d) + "}\n"
-            s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1, 0]) + "," + str(dbm[2, 0]) + ") {}; "
+            s += "\\node[circle, fill=" + dbm.color + "!80, inner sep=1.5] at (" + str(dbm[1, 0]) + "," + str(
+                dbm[2, 0]) + ") {}; "
         else:
             is_non2d = dbm[1, 0] == -dbm[0, 1] or dbm[2, 0] == -dbm[0, 2] or dbm[1, 2] == -dbm[2, 1]
             if is_non2d:
@@ -413,7 +458,7 @@ while True:
 
     elif command[0] == "tikz-help":
         print(
-"""To render the tikz output in latex, you must define these two macros once in your document:
+            """To render the tikz output in latex, you must define these two macros once in your document:
 \\newcommand{\\DBMPath}[6]{
 (\\fpeval{-(#3)},\\fpeval{-(#4)}) -- (\\fpeval{(#5) - (#4)}, \\fpeval{-(#4)}) -- (#1, \\fpeval{(#1) - (#5)}) -- (#1, #2) -- (\\fpeval{(#2) - (#6)}, #2) -- (\\fpeval{-(#3)}, \\fpeval{(#6) - (#3)}) -- cycle
 }
@@ -469,7 +514,7 @@ Finally, to render the DBM, simply place the macro calls into a tikzpicture envi
 
     elif command[0] == "help":
         print(
-"""This is an interactive tool to play with Difference Bound Matrices (DBMs).
+            """This is an interactive tool to play with Difference Bound Matrices (DBMs).
 Commands:
 new <true|false|zero> [name] - Create a new DBM, if no name is given, a new name is generated
 select <name> - Select a DBM
@@ -496,7 +541,3 @@ show // Shows a visual presentation of the DBM
 
     else:
         print(f"Unknown command '{command[0]}', try help for a list of commands")
-
-
-
-
