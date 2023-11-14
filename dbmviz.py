@@ -17,52 +17,50 @@ color_iter = itertools.cycle(colors)
 
 class DBM:
     @staticmethod
-    def true():
-        dbm = DBM(1)
-        dbm[0, 1] = 0
-        dbm[1, 0] = infinity
-        dbm[0, 2] = 0
-        dbm[2, 0] = infinity
-        dbm[1, 2] = infinity
-        dbm[2, 1] = infinity
+    def true(clocks: int):
+        dbm = DBM(clocks)
+        for c1 in range(1, clocks + 1):
+            for c2 in range(clocks + 1):
+                dbm[c1, c2] = infinity
+        for c2 in range(clocks + 1):
+            dbm[0, c2] = 0
         return dbm
 
     @staticmethod
-    def false():
-        dbm = DBM(1)
-        dbm.dbm = [-1 for _ in range(9)]
+    def false(clocks: int):
+        dbm = DBM(clocks)
+        dbm.dbm = [-1 for _ in range((clocks + 1)**2)]
         return dbm
 
     @staticmethod
-    def zero():
-        return DBM(1)
+    def zero(clocks: int):
+        return DBM(clocks)
 
+    # Input clocks is excluding 0-clock
     def __init__(self, clocks: int):
-        assert clocks >= 1 and clocks <= 2
-
-        self.clocks = clocks
-        self.dbm = [0 for _ in range(9)]
+        self.clocks = clocks + 1 # Including 0-clock
+        self.dbm = [0 for _ in range(self.clocks**2)]
         self.color = next(color_iter)
 
     def __getitem__(self, index: tuple[int, int]):
-        return self.dbm[index[0] * 3 + index[1]]
+        return self.dbm[index[0] * self.clocks + index[1]]
 
     def __setitem__(self, index: tuple[int, int], value: int):
-        self.dbm[index[0] * 3 + index[1]] = value
+        self.dbm[index[0] * self.clocks + index[1]] = value
 
     def is_consistent(self):
-        for c1 in [0, 1, 2]:
-            for c2 in [0, 1, 2]:
+        for c1 in range(self.clocks):
+            for c2 in range(self.clocks):
                 if -self[c1, c2] > self[c2, c1]:
                     return False
         return True
 
     def canonize(self):
-        for c1 in [0, 1, 2]:
-            for c2 in [0, 1, 2]:
+        for c1 in range(self.clocks):
+            for c2 in range(self.clocks):
                 if c1 == c2:
                     continue
-                c3 = 3 - c1 - c2
+                c3 = self.clocks - c1 - c2
                 if self[c1, c2] > self[c1, c3] + self[c3, c2]:
                     self[c1, c2] = self[c1, c3] + self[c3, c2] if self[c1, c3] != infinity and self[
                         c3, c2] != infinity else infinity
@@ -79,55 +77,59 @@ class DBM:
         else:
             self[clock1, clock2] = infinity
 
-    def reset(self, clock: int):
-        other = 3 - clock
-        self[clock, 0] = 0
-        self[0, clock] = 0
-        self[clock, other] = infinity
-        self[other, clock] = infinity
+    def reset(self, clock: int, value: int = 0):
+        self[clock, 0] = value
+        self[0, clock] = value
+        for clock2 in range(1, self.clocks):
+            if clock2 != clock:
+                self[clock, clock2] = infinity
+                self[clock2, clock] = infinity
         self.canonize()
 
     def copy(self):
-        dbm = DBM(self.clocks)
+        dbm = DBM(self.clocks - 1)
         dbm.dbm = self.dbm.copy()
         dbm.color = self.color
         return dbm
 
     def __eq__(self, other):
-        return all(a == b for a, b in zip(self.dbm, other.dbm))
+        return self.clocks == other.clocks and all(a == b for a, b in zip(self.dbm, other.dbm))
 
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        if self == DBM.true():
+        if self == DBM.true(self.clocks - 1):
             return "true"
-        elif self == DBM.false():
+        elif self == DBM.false(self.clocks - 1):
             return "false"
+
+        if self.clocks <= 3:
+            clock_names = [None, 'x', 'y']
+        else:
+            clock_names = [None] + [f'c{i}' for i in range(1, self.clocks)]
+
         c = []
-        if -self[0, 1] == self[1, 0]:
-            c.append(f"x={self[1, 0]}")
-        else:
-            if self[1, 0] != infinity:
-                c.append(f"x<={self[1, 0]}")
-            if self[0, 1] != 0:
-                c.append(f"x>={-self[0, 1]}")
 
-        if -self[0, 2] == self[2, 0]:
-            c.append(f"y={self[2, 0]}")
-        else:
-            if self[2, 0] != infinity:
-                c.append(f"y<={self[2, 0]}")
-            if self[0, 2] != 0:
-                c.append(f"y>={-self[0, 2]}")
+        for c1 in range(1, self.clocks):
+            if -self[0, c1] == self[c1, 0]:
+                c.append(f"{clock_names[c1]}={self[c1, 0]}")
+            else:
+                if self[1, 0] != infinity:
+                    c.append(f"{clock_names[c1]}<={self[1, 0]}")
+                if self[0, 1] != 0:
+                    c.append(f"{clock_names[c1]}>={-self[0, 1]}")
 
-        if -self[1, 2] == self[2, 1]:
-            c.append(f"x-y={self[1, 2]}")
-        else:
-            if self[2, 1] != infinity:
-                c.append(f"y-x<={self[2, 1]}")
-            if self[1, 2] != infinity:
-                c.append(f"x-y<={self[1, 2]}")
+        for c1 in range(1, self.clocks):
+            for c2 in range(c1 + 1, self.clocks):
+                if -self[c1, c2] == self[c2, c1]:
+                    c.append(f"{clock_names[c1]}-{clock_names[c2]}={self[c1, c2]}")
+                else:
+                    if self[2, 1] != infinity:
+                        c.append(f"{clock_names[c2]}-{clock_names[c1]}<={self[c2, c1]}")
+                    if self[1, 2] != infinity:
+                        c.append(f"{clock_names[c1]}-{clock_names[c2]}<={self[c1, c2]}")
+
         return " and ".join(c)
 
 dbms = {}
@@ -191,11 +193,11 @@ while True:
                 print("Incorrect name, must match [a-zA-Z0-9_']+")
                 dbm = None
             elif command[1] == "true":
-                dbm = DBM.true()
+                dbm = DBM.true(2)
             elif command[1] == "false":
-                dbm = DBM.false()
+                dbm = DBM.false(2)
             elif command[1] == "zero":
-                dbm = DBM.zero()
+                dbm = DBM.zero(2)
             else:
                 print("Unknown DBM, try true, false or zero")
                 continue
@@ -548,13 +550,13 @@ while True:
 \\newcommand{\\DBMPath}[6]{
 (\\fpeval{-(#3)},\\fpeval{-(#4)}) -- (\\fpeval{(#5) - (#4)}, \\fpeval{-(#4)}) -- (#1, \\fpeval{(#1) - (#5)}) -- (#1, #2) -- (\\fpeval{(#2) - (#6)}, #2) -- (\\fpeval{-(#3)}, \\fpeval{(#6) - (#3)}) -- cycle
 }
- 
+
 \\newcommand{\\DBMAxes}[2]{
 \\coordinate (origin) at (0,0);
 \\node[label=above:$y$] (y-ext) at (0,#2 + 0.5) {};
 \\node[label=right:$x$] (x-ext) at (#1 + 0.5,0) {};
 
-\\foreach \\x in {0,..., #1} 
+\\foreach \\x in {0,..., #1}
 {\\node[label=below:$\\x$] (mark\\x) at (\\x, 0) {};
 \\draw ($(mark\\x) - (0,0.1)$) -- ($(mark\\x) + (0,0.1)$);}
 \\foreach \\y in {0,..., #2}
@@ -572,7 +574,7 @@ while True:
 \\coordinate (origin) at (0,0);
 \\node[label={[label distance=-3mm]right:$x$}] (x-ext) at (#1 + 0.5, -\\dbmyoffset) {};
 
-\\foreach \\x in {0,..., #1} 
+\\foreach \\x in {0,..., #1}
 {\\node[label=below:$\\x$] (mark\\x) at (\\x, -\\dbmyoffset) {};
 \\draw ($(mark\\x) - (0,0.1)$) -- ($(mark\\x) + (0,0.1)$);}
 
@@ -588,7 +590,7 @@ You will then also need these packages:
 
 Finally, to render the DBM, simply place the macro calls into a tikzpicture environment, e.g.:
 \\begin{tikzpicture}
-\path[fill=red!80] \DBMPath{4}{2}{-1}{0}{2}{0}; 
+\path[fill=red!80] \DBMPath{4}{2}{-1}{0}{2}{0};
 \DBMAxes{4}{4}
 \\end{tikzpicture}
 """
