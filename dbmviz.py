@@ -60,10 +60,12 @@ class DBM:
             for c2 in range(self.clocks):
                 if c1 == c2:
                     continue
-                c3 = self.clocks - c1 - c2
-                if self[c1, c2] > self[c1, c3] + self[c3, c2]:
-                    self[c1, c2] = self[c1, c3] + self[c3, c2] if self[c1, c3] != infinity and self[
-                        c3, c2] != infinity else infinity
+                for c3 in range(self.clocks):
+                    if c3 == c1 or c3 == c2:
+                        continue
+                    if self[c1, c2] > self[c1, c3] + self[c3, c2]:
+                        self[c1, c2] = self[c1, c3] + self[c3, c2] if self[c1, c3] != infinity and self[
+                            c3, c2] != infinity else infinity
 
     def leq(self, clock1: int, clock2: int, value: int):
         self[clock1, clock2] = min(self[clock1, clock2], value)
