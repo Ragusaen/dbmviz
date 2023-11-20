@@ -79,7 +79,7 @@ class DBM:
 
     def reset(self, clock: int, value: int = 0):
         self[clock, 0] = value
-        self[0, clock] = value
+        self[0, clock] = -value
         for clock2 in range(1, self.clocks):
             if clock2 != clock:
                 self[clock, clock2] = infinity
@@ -110,17 +110,16 @@ class DBM:
             clock_names = [None] + [f'c{i}' for i in range(1, self.clocks)]
 
         c = []
-
+        
         for c1 in range(1, self.clocks):
             if -self[0, c1] == self[c1, 0]:
                 c.append(f"{clock_names[c1]}={self[c1, 0]}")
             else:
-                if self[1, 0] != infinity:
-                    c.append(f"{clock_names[c1]}<={self[1, 0]}")
-                if self[0, 1] != 0:
-                    c.append(f"{clock_names[c1]}>={-self[0, 1]}")
+                if self[c1, 0] != infinity:
+                    c.append(f"{clock_names[c1]}<={self[c1, 0]}")
+                if self[0, c1] != 0:
+                    c.append(f"{clock_names[c1]}>={-self[0, c1]}")
 
-        for c1 in range(1, self.clocks):
             for c2 in range(c1 + 1, self.clocks):
                 if -self[c1, c2] == self[c2, c1]:
                     c.append(f"{clock_names[c1]}-{clock_names[c2]}={self[c1, c2]}")
